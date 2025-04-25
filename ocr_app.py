@@ -17,16 +17,32 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))  # or use a hardcoded key
 if "cleanup_trigger" not in st.session_state:
     st.session_state["cleanup_trigger"] = False
 
-def ocr_with_gemini(image):
+# Sidebar for custom system prompt
+st.sidebar.header("System Prompt")
+custom_prompt = st.sidebar.text_area(
+    "Override Default",
+    value="Extract all readable text from this image. Return only plain text and formatting if necessary.",
+    height=200
+)
+
+
+def ocr_with_gemini(image, prompt):
     buf = BytesIO()
     image.save(buf, format="JPEG")
     encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
+    
     model = genai.GenerativeModel("gemini-2.0-flash")
     response = model.generate_content([
         {"inline_data": {"mime_type": "image/jpeg", "data": encoded}},
-        "Extract all readable text from this image. Return only plain text and formatting if necessary."
+        prompt
     ])
-    return getattr(response, "text", "⚠️ No OCR output")
+    
+    # Get the text and token count
+    text = getattr(response, "text", "⚠️ No OCR output")
+    token_count = getattr(response.usage_metadata, "total_token_count", 0)
+    
+    return text, token_count
+
 
 def pdf_to_images(pdf_path):
     doc = fitz.open(pdf_path)
@@ -37,6 +53,8 @@ def pdf_to_images(pdf_path):
     doc.close()
 
 def process_pdfs(input_dir, output_dir, progress_placeholder, status_placeholder):
+    total_tokens_used = 0
+
     structure_output = []
     pdfs = [os.path.join(root, file)
             for root, _, files in os.walk(input_dir)
@@ -51,7 +69,9 @@ def process_pdfs(input_dir, output_dir, progress_placeholder, status_placeholder
         images = list(pdf_to_images(pdf_file))
         for i, img in enumerate(images):
             status_placeholder.info(f"🔍 Processing: {chapter_name} (Page {i+1}/{len(images)})")
-            text = ocr_with_gemini(img)
+            text, token_count = ocr_with_gemini(img, prompt=custom_prompt)
+            total_tokens_used += token_count
+
             txt_name = f"{chapter_name}_page_{i+1}.txt"
             txt_path = os.path.join(chapter_out, txt_name)
             with open(txt_path, "w", encoding="utf-8") as f:
@@ -60,6 +80,7 @@ def process_pdfs(input_dir, output_dir, progress_placeholder, status_placeholder
 
         progress_placeholder.progress((idx + 1) / len(pdfs))
 
+    st.info(f"🔢 Total Gemini Tokens Used: {total_tokens_used}")
     return "\n".join(structure_output)
 
 def zip_folder(folder_path):
@@ -74,7 +95,7 @@ def zip_folder(folder_path):
     return zip_buffer
 
 # Streamlit UI
-st.title("📖 Gemini OCR PDF Processor")
+st.title("PDF Processing Pipeline")
 
 uploaded_zip = st.file_uploader("Upload a ZIP of PDFs", type=["zip"])
 if uploaded_zip:
