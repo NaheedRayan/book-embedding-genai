@@ -21,7 +21,10 @@ if "cleanup_trigger" not in st.session_state:
 st.sidebar.header("System Prompt")
 custom_prompt = st.sidebar.text_area(
     "Override Default",
-    value="Extract all readable text from this image. Return only plain text and formatting if necessary. If there are numerical values or equations use LaTeX formatting.",
+    value="""Extract all readable text from this image. Return only plain text and formatting if necessary. EXCLUSIVELY use latex tags for both markdown and mathematical notations and equations For mathematical expressions: 
+    1. For inline equations, use single dollar signs: $ ... $ 2. For display equations, use double dollar signs: $$ ... $$ 
+    3. For units, use regular text, not \\text command: atm, K, Â°C 
+    4. For variables, use single letters without \\text: P, T, V 5. Format mathematical expressions like this: - Pressure: $P = 1$ atm - Temperature: $T = 273.15$ K - Equations: $$ \\frac{P_1}{T_1} = \\frac{P_2}{T_2} $$""",
     height=200
 )
 
