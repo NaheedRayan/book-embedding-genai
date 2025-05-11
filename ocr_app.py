@@ -21,7 +21,7 @@ if "cleanup_trigger" not in st.session_state:
 st.sidebar.header("System Prompt")
 custom_prompt = st.sidebar.text_area(
     "Override Default",
-    value="Extract all readable text from this image. Return only plain text and formatting if necessary.",
+    value="Extract all readable text from this image. Return only plain text and formatting if necessary. If there are numerical values or equations use LaTeX formatting.",
     height=200
 )
 
